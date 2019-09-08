@@ -1,0 +1,63 @@
+version: '3'
+services:
+
+  postgres:
+    image: "postgres:latest"
+    volumes:
+      - "dbdata:/var/lib/postgresql/data"
+    env_file:
+      - .env
+    networks:
+      - db_nw
+  
+  flask:
+    build: ./Flask
+    image: flask
+    container_name: flask
+    hostname: flask
+    cap_add:
+      - MKNOD
+      - SYS_ADMIN
+    security_opt:
+      - apparmor:unconfined
+    devices:
+      - /dev/fuse
+    tty: true
+    env_file:
+      - .env
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./Flask/src:/app
+      # - ./Flask/models:/models # PyTorch models
+    networks:
+      - db_nw
+      - web_nw
+    depends_on:
+      - postgres
+  
+  nginx_angular:
+    container_name: nginx_angular
+    restart: always
+    image: nginx
+    build:
+      context: .
+      dockerfile: Angular/Dockerfile
+    volumes:
+     - ./Angular/datascience/dist/datascience/:/usr/share/nginx/html
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - flask
+    networks:
+      - web_nw
+
+networks:
+  db_nw:
+    driver: bridge
+  web_nw:
+    driver: bridge
+
+volumes:
+  dbdata:
